@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voxel Grand Tourismo</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<canvas id="gl"></canvas>
+<canvas id="hud"></canvas>
+
+<div id="title" class="screen">
+  <div class="brand">VOXEL<span>GRAND TURISMO</span></div>
+  <div class="tagline">— the real voxel driving simulator —</div>
+  <button id="btnStart" class="cta">START NEW GAME</button>
+  <div class="credits">5 legendary cars · 3 real circuits · WASD to drive · ENTER to navigate</div>
+</div>
+
+<div id="carSelect" class="screen hidden">
+  <h2>SELECT YOUR MACHINE</h2>
+  <div id="carList"></div>
+  <div class="nav"><button id="btnCarBack" class="ghost">BACK</button><button id="btnCarNext" class="cta">NEXT</button></div>
+</div>
+
+<div id="trackSelect" class="screen hidden">
+  <h2>SELECT COURSE</h2>
+  <div id="trackList"></div>
+  <div class="nav"><button id="btnTrackBack" class="ghost">BACK</button><button id="btnTrackGo" class="cta">GO RACING</button></div>
+</div>
+
+<div id="pause" class="screen hidden dim">
+  <h2>PAUSED</h2>
+  <div class="nav col">
+    <button id="btnResume" class="cta">RESUME</button>
+    <button id="btnQuit" class="ghost">QUIT TO TITLE</button>
+  </div>
+</div>
+
+<div id="results" class="screen hidden dim">
+  <h2>RESULTS</h2>
+  <div id="resBody"></div>
+  <div class="nav col">
+    <button id="btnRetry" class="cta">RETRY</button>
+    <button id="btnResultsQuit" class="ghost">TITLE</button>
+  </div>
+</div>
+
+<div id="booterr"></div>
+<script>
+(function () {
+  function fatal(msg) {
+    const b = document.getElementById('booterr');
+    b.textContent = '⚠ ' + msg;
+    b.style.display = 'block';
+  }
+  window.addEventListener('error', (e) => {
+    fatal(e.message + (e.filename ? ' (' + e.filename.split('/').pop() + ':' + e.lineno + ')' : ''));
+  });
+  window.addEventListener('unhandledrejection', (e) => fatal(String(e.reason)));
+  if (location.protocol === 'file:') {
+    fatal('Page opened via file:// — module scripts are blocked. Run: python3 -m http.server  (then open http://localhost:8000)');
+  }
+})();
+</script>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
