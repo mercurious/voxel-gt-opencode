@@ -9,7 +9,9 @@ export class Car {
   }
 
   nearest() {
-    const i = this.idx.query(this.x, this.y);
+    // z is passed so an overpass hands us the deck we are actually on instead
+    // of the lane it crosses over
+    const i = this.idx.query(this.x, this.y, this.z);
     this.sIdx = i;
     return this.track.samples[i];
   }

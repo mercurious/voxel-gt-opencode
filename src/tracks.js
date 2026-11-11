@@ -1,233 +1,393 @@
-// Track definitions: 3 real circuits. Courses authored as ordered segments
-// {len meters, turn degrees (+ = left, - = right), r radius (default 45),
-//  dz elevation gain, name for HUD}. Waypoints are generated from arcs,
-// then smoothed with a closed centripetal Catmull-Rom and resampled at 1 m.
+// Real-world track definitions for GranVoxel.
+// Courses are described as real-world centerline arcs (measured in meters).
+// Each segment: straight = { s, dz, bank }, arc = { r, t, dz, bank } where
+// t is the heading change in degrees (positive = right turn). The drawn arc
+// length is r*|t| (radians); any `s`/`len` on a turning segment is ignored.
+// dz = elevation change across the segment (m).
+// `wind` is the topological turning number of the completed lap:
+// -1 = one net clockwise revolution (Tsukuba, Nordschleife),
+//  0 = figure-eight with odd number of crossings (Suzuka).
+// The closer arcs are solved so the spline closes smoothly (matching heading)
+// AND the lap realizes that winding number; courses must therefore have turn
+// sums close to wind*360 deg.
+// World-space z is base + dz (base differs per track); dz values in courses
+// are relative heights that the closer brings back to the start elevation.
 
 export const TRACKS = [
   {
-    id: 'tsukuba',
-    name: 'Tsukuba Circuit',
-    place: 'Shimotsuma, Ibaraki, Japan',
-    realLength: 2045,
-    roadHalf: 6.0,
-    theme: { grass: [0.36, 0.52, 0.26], sky: [0.56, 0.72, 0.92], trees: 'sparse', standAt: 0.03, standSides: [-1], pitSides: [1], pitAt: 0.10 },
+    id: "tsukuba",
+    name: "Tsukuba Circuit",
+    loc: "Mooritsuka, Ibaraki, Japan",
+    country: "JP",
+    lengthM: 1773, // stylized layout; computed lap of this course
+    wind: -1, // clockwise circuit
+    roadHalf: 7.0,
+    curvK: 0.00035,
+    zBase: 40,
+    startHeading: 90,
     course: [
-      { len: 430, turn: 0, dz: 0, name: 'Pit Straight' },
-      { len: 80, turn: 38, r: 70, dz: 0, name: 'Turn 1' },
-      { len: 60, turn: -85, r: 50, dz: 0, name: 'S-Curve' },
-      { len: 90, turn: -80, r: 45, dz: 0 },
-      { len: 150, turn: 32, r: 60, dz: -2 },
-      { len: 250, turn: 0, dz: -2 },
-      { len: 110, turn: -98, r: 62, dz: -2, name: '100R' },
-      { len: 180, turn: 0, dz: -2 },
-      { len: 60, turn: -46, r: 40, dz: -2, name: 'S-Hairpin' },
-      { len: 55, turn: 188, r: 24, dz: -2 },
-      { len: 55, turn: -142, r: 34, dz: -2 },
-      { len: 240, turn: 0, dz: -2 },
-      { len: 90, turn: 34, r: 55, dz: 2, name: 'Esse' },
-      { len: 100, turn: -34, r: 55, dz: 2 },
-      { len: 240, turn: 0, dz: 2 },
-      { len: 130, turn: 105, r: 42, dz: 2, name: 'Last Corner' },
-      { len: 120, turn: 0, dz: 0 },
+      { s: 125, name: "Start/Finish Straight" },
+      { r: 55, t: -72.3, bank: 2, name: "Turn 1" },
+      { s: 50 },
+      { r: 140, t: 28.0, bank: 3, name: "S Curve" },
+      { r: 110, t: -30.0 },
+      { s: 60, name: "Meadow Straight" },
+      { r: 40, t: -90.0, bank: 4, name: "Meadow Corner" },
+      { s: 45 },
+      { r: 110, t: 52.0, bank: 3, name: "Back Straight Kink" },
+      { s: 260, name: "Back Straight" },
+      { r: 38, t: -95.5, bank: 5, name: "Hairpin" },
+      { s: 165, name: "Downhill Straight" },
+      { r: 65, t: -47.4, name: "Last Corner" },
+      { s: 80 },
     ],
   },
+
   {
-    id: 'suzuka',
-    name: 'Suzuka Circuit',
-    place: 'Suzuka, Mie, Japan — figure-eight',
-    realLength: 5807,
+    id: "suzuka",
+    name: "Suzuka Circuit",
+    loc: "Suzuka, Mie, Japan",
+    country: "JP",
+    lengthM: 3550, // stylized layout; computed lap of this course
+    full: false,
+    condensed: true, // compressed GP layout; one bridged figure-eight crossing
+    wind: 0, // figure-eight: crossings cancel the winding
     roadHalf: 7.5,
-    theme: {
-      grass: [0.40, 0.55, 0.28], sky: [0.53, 0.71, 0.93], trees: 'sparse',
-      standAt: 0.965, standSides: [-1], pitSides: [-1], pitAt: 0.03,
-      bridge: null, ferris: null,
-    },
+    curvK: 0.00045,
+    zBase: 38,
+    startHeading: 105,
     course: [
-      { len: 540, turn: 0, dz: 0, name: 'Start Straight' },
-      { len: 95, turn: -62, r: 50, dz: 0, name: 'S-Curve' },
-      { len: 80, turn: 95, r: 55, dz: 0 },
-      { len: 210, turn: 0, dz: 1 },
-      { len: 80, turn: 55, r: 45, dz: 2, name: '1st Degner' },
-      { len: 90, turn: 40, r: 50, dz: 3, name: 'Spoon Curve' },
-      { len: 230, turn: 0, dz: 3 },
-      { len: 300, turn: 165, r: 120, dz: 0, name: '130R' },
-      { len: 620, turn: 0, dz: -3, name: 'Back Straight' },
-      { len: 90, turn: 65, r: 42, dz: 0, name: 'Casio Triangle' },
-      { len: 95, turn: -80, r: 42, dz: 0 },
-      { len: 140, turn: 0, dz: -2 },
-      { len: 170, turn: 150, r: 60, dz: -2, name: '2nd Degner' },
-      { len: 230, turn: 0, dz: -1 },
-      { len: 200, turn: -165, r: 80, dz: 0, name: '1st Corner' },
-      { len: 90, turn: -178, r: 60, dz: 0 },
-      { len: 80, turn: 0, dz: 0 },
+      { s: 127, name: "Start/Finish Straight" },
+      { r: 69, t: -100, bank: 5, name: "Turn 1 (130R)" },
+      { s: 43, name: "Casio Triangle Chicane" },
+      { r: 62, t: 37.5 },
+      { r: 43, t: -32.2 },
+      { s: 68, name: "Degner 1 & 2" },
+      { r: 47, t: 94, bank: 4, name: "Degner Curve" },
+      { s: 28 },
+      { r: 187, t: -27.4, bank: 6, name: "Spoon Curve" },
+      { s: 43 },
+      { r: 41, t: -162.4, bank: 5, name: "S Curve (17R/18R)" },
+      { s: 21 },
+      { r: 48, t: 51.4, name: "S Curve Exit" },
+      { s: 155, dz: 6, name: "1st Curve Straight" }, // climbs toward the crossing
+      { r: 47, t: 99.7, bank: 5, name: "1st Curve" },
+      { s: 62 },
+      { r: 43, t: -58.3, name: "Sunrise Bend" },
+      { s: 31 },
+      { r: 55, t: -152, bank: 4, name: "Sunrise Hairpin" },
+      { s: 28 },
+      { r: 66, t: 72.4, name: "130R" },
+      { s: 68, name: "Spoon Curve" }, // bridge deck starts after the crossing
+      { r: 203, t: 22, bank: 6, name: "S Curve" },
+      { s: 74 },
+      { r: 47, t: 77, bank: 3, name: "Chicane" },
+      { s: 81, dz: -6 }, // descend once clear of the crossing
+      { r: 58, t: -66, name: "Chicane" },
+      { s: 93 },
+      { r: 31, t: 60, name: "2nd Curve" },
+      { s: 56, name: "2nd Curve Straight" },
+      { r: 70, t: 70, name: "New Dunlop Curve" },
+      { s: 37 },
     ],
   },
+
   {
-    id: 'nordschleife',
-    name: 'Nürburgring Nordschleife',
-    place: 'Nürburg, Germany — highlight loop',
-    realLength: 20832,
-    condensed: true,
-    roadHalf: 5.6,
-    theme: {
-      grass: [0.30, 0.46, 0.24], sky: [0.62, 0.74, 0.88], trees: 'dense',
-      standAt: 0.02, standSides: [-1], pitSides: [1], pitAt: 0.06,
-      bank: [], concrete: [],
-    },
+    id: "nordschleife",
+    name: "Nordschleife",
+    loc: "Nürburg, Eifel, Germany",
+    country: "DE",
+    lengthM: 3762, // condensed layout; computed lap of this course (real circuit is 20832)
+    full: false,
+    condensed: true, // compressed single-loop layout of the 20.8km Nordschleife
+    wind: -1,
+    roadHalf: 7.0,
+    curvK: 0.0005,
+    zBase: 320,
+    startHeading: 120,
     course: [
-      { len: 520, turn: 0, dz: 0, name: 'Pit Straight' },
-      { len: 60, turn: -20, r: 80, dz: 0, name: 'Turn 1' },
-      { len: 110, turn: -35, r: 85, dz: 0, name: 'Hatzenbach' },
-      { len: 130, turn: -20, r: 80, dz: 0 },
-      { len: 150, turn: -20, r: 110, dz: 2, name: 'Schwedenkreuz' },
-      { len: 80, turn: -50, r: 70, dz: 2 },
-      { len: 330, turn: 0, dz: 8, name: 'Fuchsfarm Link' },
-      { len: 150, turn: 75, r: 130, dz: 10, name: 'Fuchsfarm' },
-      { len: 440, turn: 0, dz: 12, name: 'Döttinger Höhe' },
-      { len: 150, turn: -50, r: 100, dz: 8, name: 'Flugplatz' },
-      { len: 110, turn: -25, r: 85, dz: 2 },
-      { len: 140, turn: -25, r: 110, dz: -2, name: 'Adenauer Forst' },
-      { len: 170, turn: 75, r: 95, dz: -4, name: 'Metzgesfeld' },
-      { len: 140, turn: -35, r: 90, dz: -4 },
-      { len: 100, turn: -65, r: 70, dz: -6, name: 'Kallenhard' },
-      { len: 130, turn: 45, r: 100, dz: -6, name: 'Weichenwäldchen' },
-      { len: 110, turn: -60, r: 70, dz: -10, name: 'Bergwerk' },
-      { len: 170, turn: 130, r: 42, dz: -12, bank: 0.5, concrete: true, name: 'Karussell' },
-      { len: 130, turn: -10, r: 110, dz: -14 },
-      { len: 100, turn: -50, r: 70, dz: -12, name: 'Pflanzgarten' },
-      { len: 90, turn: -45, r: 65, dz: -10 },
-      { len: 120, turn: -55, r: 75, dz: -14, name: 'Schwalbenschwanz' },
-      { len: 380, turn: 95, r: 190, dz: -22, name: 'Galgenkopf' },
-      { len: 260, turn: 0, dz: -10 },
-      { len: 140, turn: -20, r: 95, dz: -5, name: 'Herzblich-Junkersdorf' },
-      { len: 190, turn: 0, dz: 0 },
-      { len: 110, turn: 50, r: 85, dz: 0 },
-      { len: 120, turn: -55, r: 70, dz: 2, name: 'Hatzenbach' },
-      { len: 210, turn: 0, dz: 2 },
-      { len: 150, turn: 50, r: 120, dz: 2, name: 'Bräschemich' },
-      { len: 170, turn: -18, r: 120, dz: 2 },
-      { len: 170, turn: 0, dz: 0 },
+      { s: 150, name: "Start/Finish (Treppchen)" },
+      { r: 52, t: -72, dz: 2, name: "Hatzenbach" },
+      { s: 30, dz: 2 },
+      { r: 60, t: 34, name: "S-Feld Linkskurve" },
+      { r: 55, t: -58, dz: 3, name: "Schwedenkreuz" },
+      { s: 40, dz: 3 },
+      { r: 45, t: -38, dz: 4, name: "Amtsblattpipes (AFP)" },
+      { r: 70, t: -20, dz: 4, name: "Metternich" },
+      { s: 55, dz: -3, name: "Adenauer Forst Straight" },
+      { r: 50, t: -80, dz: -6, name: "Hohe Acht" },
+      { s: 40, dz: -4 },
+      { r: 90, t: 25, name: "Wippermann" },
+      { r: 60, t: -30, name: "Steiness-Kuppe" },
+      { s: 80, name: "Eulschleife Straight" },
+      { r: 55, t: -62, name: "Castellener Bogen" },
+      { s: 30 },
+      { r: 80, t: 18, name: "Breidscheid" },
+      { r: 75, t: -24, dz: -3, name: "Fuchskuhle" },
+      { s: 50, dz: -2 },
+      { r: 48, t: -70, dz: -2, name: "Schwalbenschwanz" },
+      { r: 65, t: 35, dz: 4, name: "Pflanzgarten Kehre" },
+      { s: 35, dz: 4 },
+      { r: 95, t: -15, dz: 5, name: "Bergwerk" },
+      { s: 45, dz: 5, name: "Pflanzgarten Waldsection" },
+      { r: 85, t: 30, dz: 5, name: "Kesselchen" },
+      { r: 40, t: -95, dz: 4, name: "Waldsection Hairpin" },
+      { s: 30, dz: -6 },
+      { r: 110, t: 40, dz: -6, name: "Adenauer Forst Kehre" },
+      { r: 50, t: -45, dz: -5, name: "Karussell" },
+      { s: 50, dz: -5 },
+      { r: 70, t: 55, dz: -4, name: "Tiergarten Eckschleife" },
+      { r: 60, t: -30, dz: -4, name: "Wehrmaschine" },
+      { s: 215 },
+      { r: 90, t: 8, name: "Gaevenich" },
+      { r: 50, t: -130, dz: -1, name: "Hatzenbach Kehre" },
+      { s: 150 },
+      { r: 240, t: -120, name: "Hatzenbacher Wand" },
+      { s: 350, name: "Hatzenbach Straight" },
     ],
   },
 ];
 
-// integrate one course segment from state s {x,y,z,h}
+function normDeg(a) {
+  while (a > 180) a -= 360;
+  while (a < -180) a += 360;
+  return a;
+}
+
+// integrate one course segment in place; s = {x,y,z,h}
 function applySeg(s, seg) {
-  const t = seg.turn || 0;
-  const dz = seg.dz || 0;
-  if (t === 0) {
-    const rad = (s.h * Math.PI) / 180;
-    s.x += Math.cos(rad) * seg.len;
-    s.y += Math.sin(rad) * seg.len;
-    s.z += dz;
-  } else {
-    const d = (t * Math.PI) / 180;
-    const r = seg.r || 45;
-    const sgn = Math.sign(t);
-    const cx = s.x - Math.sin(s.h * Math.PI / 180) * r * sgn;
-    const cy = s.y + Math.cos(s.h * Math.PI / 180) * r * sgn;
-    const px = s.x - cx, py = s.y - cy;
-    const c = Math.cos(d), sn = Math.sin(d);
-    s.x = cx + px * c - py * sn;
-    s.y = cy + px * sn + py * c;
-    s.z += dz;
-    s.h += t;
+  const t = seg.turn;
+  s.z += seg.dz || 0;
+  if (!t) {
+    s.x += Math.cos(s.h * Math.PI / 180) * seg.len;
+    s.y += Math.sin(s.h * Math.PI / 180) * seg.len;
+    return;
   }
+  const r = Math.abs(seg.r);
+  // true circular arc: chord = 2r sin(|t|/2) in the direction of the mid
+  // heading (h + t/2). The center-offset form is only correct if the center
+  // is placed at h + sign(t)*90; getting that wrong kinks every chunked arc.
+  const chord = 2 * r * Math.sin(Math.abs(t) * Math.PI / 360);
+  const mid = (s.h + t / 2) * Math.PI / 180;
+  s.x += Math.cos(mid) * chord;
+  s.y += Math.sin(mid) * chord;
+  s.h += t;
 }
 
-// solve closing connector: arc(d1,r1) + straight(L) + arc(d2,r2) returning
-// exactly to (0,0) with heading 0 (d1+d2 = -h by construction).
-// Damped Gauss-Newton over (d1, r1, L, r2) with multistart + regularization.
-function solveCloser(x, y, h) {
-  const eod = (v) => {
-    const s = { x, y, z: 0, h };
-    const d2 = -h - v[0];
-    applySeg(s, { turn: v[0], r: Math.max(8, v[1]) });
-    applySeg(s, { len: Math.max(0, v[2]), turn: 0 });
-    applySeg(s, { turn: d2, r: Math.max(8, v[3]) });
-    return [s.x, s.y];
+// Solve the closing maneuver (arc d1, straight L, arc d2) that returns the
+// course end to the origin with matching heading. The completed lap must make
+// a full revolution (wind * 360 deg) — forcing zero net rotation makes the
+// course fold back on itself. With target = wind*360 - courseTurn - hEnd the
+// loop closes on its own natural orbit instead of a degenerate r->inf U-turn.
+function solveCloser(x, y, h, wind, body = null) {
+  const D = Math.PI / 180;
+  const dist = (v, tgt) => {
+    const [d1, r1, L, r2] = v;
+    // integrate the candidate closer forwards from a virtual origin with the
+    // course-end heading; the lap closes when the displacement equals -C,
+    // and d1 + d2 = windK*360 - h makes heading closure exact by construction,
+    // so only the position gap is a free residual
+    const s = { x: 0, y: 0, z: 0, h };
+    applySeg(s, { len: 0, turn: d1, r: r1, dz: 0 });
+    applySeg(s, { len: L, turn: 0 });
+    applySeg(s, { len: 0, turn: tgt - d1, r: r2, dz: 0 });
+    return { dx: s.x + x, dy: s.y + y };
   };
-  const costOf = (v) => {
-    const e = eod(v);
-    const pen = (r, lo, hi) => Math.max(0, lo - r) * 50 + Math.max(0, r - hi) * 0.5;
-    return e[0] * e[0] + e[1] * e[1]
-      + pen(v[1], 20, 900) + pen(v[3], 20, 900)
-      + Math.max(0, v[2] - 900) * 400
-      + Math.max(0, Math.abs(v[0]) - 250) * 300
-      + Math.max(0, Math.abs(-h - v[0]) - 250) * 300
-      + 0.02 * (v[0] * v[0] + (-h - v[0]) * (-h - v[0]));
+  // a closing arc never turns more than 200 deg; anything sharper is a
+  // spiral drill that intersects the course body, not a corner a car could
+  // take. d2 = tgt - d1 must satisfy the same bound, which pins d1.
+  const cands = [];
+  let seed = 123456789;
+  const rnd = () => {
+    seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5;
+    return (seed >>> 0) / 4294967296;
   };
-  let best = null;
-  const rnd = (() => { let a = 12345; return () => (a = (a * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff; })();
-  const seeds = [];
-  for (const d1 of [-90, 0, 90]) for (const r of [40, 120, 400]) seeds.push([d1, r, 120, r]);
-  for (let i = 0; i < 40; i++) seeds.push([(rnd() * 2 - 1) * 200, 20 + rnd() * 500, rnd() * 600, 20 + rnd() * 500]);
-  for (const seed of seeds) {
-    const v = seed.slice();
-    for (let it = 0; it < 40; it++) {
-      const e = eod(v);
-      if (Math.hypot(e[0], e[1]) < 0.01) break;
-      const h1 = 1e-3;
-      const j = [[0, 0, 0, 0], [0, 0, 0, 0]];
-      for (let k = 0; k < 4; k++) {
-        const dv = v.slice();
-        dv[k] += h1;
-        const e2 = eod(dv);
-        j[0][k] = (e2[0] - e[0]) / h1;
-        j[1][k] = (e2[1] - e[1]) / h1;
+  for (const windK of [wind || 0, 0, -1, 1, -2, 2, -3, 3, -4]) {
+    const tgt = windK * 360 - h;
+    const loD1 = Math.max(-200, tgt - 200);
+    const hiD1 = Math.min(200, tgt + 200);
+    if (loD1 > hiD1) continue; // this winding has no gentle closer
+    const LO = [loD1, 50, 0, 50];
+    const HI = [hiD1, 1200, 2200, 1200];
+    const clip = (v) => {
+      for (let i = 0; i < 4; i++) v[i] = Math.min(HI[i], Math.max(LO[i], v[i]));
+      return v;
+    };
+    const clen = (v) => v[1] * Math.abs(v[0]) * D + v[2] + v[3] * Math.abs(tgt - v[0]) * D;
+    const pathOf = (v, tg) => {
+      const s = { x: 0, y: 0, z: 0, h };
+      const pts = [];
+      const walk = (turn, r) => {
+        if (!turn) return;
+        const n = Math.max(1, Math.round(Math.abs(turn) / 10));
+        for (let k = 0; k < n; k++) {
+          applySeg(s, { len: 0, turn: turn / n, r, dz: 0 });
+          pts.push([s.x, s.y]);
+        }
+      };
+      walk(v[0], v[1]);
+      const nL = Math.max(1, Math.round(v[2] / 25));
+      for (let k = 0; k < nL; k++) {
+        applySeg(s, { len: v[2] / nL, turn: 0, dz: 0 });
+        pts.push([s.x, s.y]);
       }
-      // normal equations J J^T d = e  (underdetermined: min-norm step)
-      const A = [[0, 0], [0, 0]], g = [0, 0];
-      for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) A[a][b] = j[a][0] * j[b][0] + j[a][1] * j[b][1] + (a === b ? 1e-4 : 0);
-      g[0] = e[0]; g[1] = e[1];
-      const det = A[0][0] * A[1][1] - A[0][1] * A[1][0];
-      if (Math.abs(det) < 1e-12) break;
-      const yv = [(A[1][1] * g[0] - A[0][1] * g[1]) / det, (-A[1][0] * g[0] + A[0][0] * g[1]) / det];
-      const step = [
-        j[0][0] * yv[0] + j[1][0] * yv[1],
-        j[0][1] * yv[0] + j[1][1] * yv[1],
-        j[0][2] * yv[0] + j[1][2] * yv[1],
-        j[0][3] * yv[0] + j[1][3] * yv[1],
-      ];
-      const cur = costOf(v);
-      let lam = 1, improved = false;
-      for (let k = 0; k < 24; k++) {
-        const nv = v.map((q, i2) => Math.min(3000, Math.max(-360, q - lam * step[i2])));
-        nv[1] = Math.max(8, nv[1]); nv[3] = Math.max(8, nv[3]); nv[2] = Math.max(0, nv[2]);
-        if (costOf(nv) < cur) { for (let i2 = 0; i2 < 4; i2++) v[i2] = nv[i2]; improved = true; break; }
-        lam *= 0.5;
+      walk(tg - v[0], v[3]);
+      return pts;
+    };
+    const clearance = (v, tg) => {
+      if (!body || !body.length) return 0;
+      let pen = 0;
+      for (const p of pathOf(v, tg)) {
+        if (Math.hypot(p[0], p[1]) < 40) continue; // closing on the finish line is the point
+        let bd = Infinity;
+        for (const b of body) {
+          if (Math.hypot(b[0], b[1]) < 80) continue; // start/finish merge zone
+          const d = Math.hypot(b[0] - p[0], b[1] - p[1]);
+          if (d < bd) bd = d;
+        }
+        if (bd < 30) pen += (30 - bd) * (30 - bd);
       }
-      if (!improved) break;
+      return pen * 0.5;
+    };
+    const cost = (v) => {
+      const e = dist(v, tgt);
+      let c = (e.dx * e.dx + e.dy * e.dy) * 1e-2;
+      c += clen(v) * 0.12; // compactness: without this a 1.2 km radius 300 deg sweep "closes" the gap
+      c += clearance(v, tgt);
+      return c;
+    };
+    const dist0 = Math.hypot(x, y);
+    const homeBrg = Math.atan2(-y, -x) / D;
+    const starts = [
+      clip([tgt / 2, Math.max(150, dist0 * 0.6), dist0 * 0.7, Math.max(150, dist0 * 0.6)]),
+      clip([tgt > 0 ? Math.min(180, tgt) : Math.max(-180, tgt), dist0 * 0.5, dist0 * 0.8, dist0 * 0.8]),
+    ];
+    // closed-form single-arc seeds: turn tgt on the circle that spans the gap,
+    // and a variant whose chord points straight at the finish line
+    const arcSeed = (d) => {
+      if (Math.abs(d) < 2 || Math.abs(d) > 359) return null;
+      const r = dist0 / (2 * Math.sin(Math.abs(d) * D / 2));
+      return r <= 1200 ? clip([d, r, 0, 500]) : null;
+    };
+    for (const s of [arcSeed(tgt), arcSeed(((2 * (homeBrg - h) + 540) % 360) - 180),
+      arcSeed(((2 * (homeBrg - h) + 900) % 360) - 180)])
+      if (s) starts.push(s);
+    // big-angle S-curve seeds: one arc turns a, the other turns tgt - a; the
+    // useful basins (e.g. a hairpin straight with a final corner) live far
+    // from d1 ~= tgt/2, so sweep d1 across the whole feasible window
+    for (const a of [-180, -120, -70, -30, 30, 70, 120, 180])
+      starts.push(clip([a, Math.max(120, dist0 * (0.3 + 0.5 * Math.abs(a) / 180)), dist0 * 0.8, Math.max(80, dist0 * 0.15)]));
+    for (let k = 0; k < 18; k++)
+      starts.push(clip([loD1 + (hiD1 - loD1) * rnd(), 50 + rnd() * 950, dist0 * (0.2 + rnd() * 1.3), 50 + rnd() * 950]));
+    // damped Gauss-Newton on the position gap (heading closes exactly by
+    // construction); ridge + backtracking handle the rank-deficient directions
+    let bestV = null;
+    let bestC = Infinity;
+    const gap2 = (w) => { const e = dist(w, tgt); return e.dx * e.dx + e.dy * e.dy; };
+    for (const st of starts) {
+      const v = st.slice();
+      let cg = gap2(v);
+      let lam = 1;
+      for (let it = 0; it < 120; it++) {
+        const e0 = dist(v, tgt);
+        if (cg < 1e-8) break;
+        const J = [[0, 0, 0, 0], [0, 0, 0, 0]];
+        for (let i = 0; i < 4; i++) {
+          const w = v.slice();
+          w[i] += i === 2 ? 1 : 0.1;
+          clip(w);
+          const e1 = dist(w, tgt);
+          const dw = w[i] - v[i];
+          if (Math.abs(dw) < 1e-9) continue;
+          J[0][i] = (e1.dx - e0.dx) / dw;
+          J[1][i] = (e1.dy - e0.dy) / dw;
+        }
+        const a00 = J[0][0] * J[0][0] + J[1][0] * J[1][0] + lam;
+        const a01 = J[0][0] * J[0][1] + J[1][0] * J[1][1];
+        const a11 = J[0][1] * J[0][1] + J[1][1] * J[1][1] + lam;
+        const det = a00 * a11 - a01 * a01;
+        if (!isFinite(det) || Math.abs(det) < 1e-9) break;
+        const y0 = (-e0.dx * a11 + e0.dy * a01) / det;
+        const y1 = (-e0.dy * a00 + e0.dx * a01) / det;
+        let dv = [0, 1, 2, 3].map((i) => J[0][i] * y0 + J[1][i] * y1);
+        // drop components pinned against their bound so one clamped variable
+        // cannot stall the whole step
+        for (let i = 0; i < 4; i++) {
+          if ((dv[i] > 0 && v[i] >= HI[i] - 1e-9) || (dv[i] < 0 && v[i] <= LO[i] + 1e-9)) dv[i] = 0;
+        }
+        let smax = 1;
+        for (let i = 0; i < 4; i++) {
+          if (dv[i] > 1e-12) smax = Math.min(smax, (HI[i] - v[i]) / dv[i]);
+          else if (dv[i] < -1e-12) smax = Math.min(smax, (LO[i] - v[i]) / dv[i]);
+        }
+        if (smax <= 1e-9 || !isFinite(smax)) break; // fully blocked at bounds
+        let moved = false;
+        for (let sc = smax; sc > 1e-6; sc *= 0.5) {
+          const w = v.slice();
+          for (let i = 0; i < 4; i++) w[i] += sc * dv[i];
+          clip(w);
+          const gw = gap2(w);
+          if (gw < cg - 1e-12) {
+            for (let i = 0; i < 4; i++) v[i] = w[i];
+            cg = gw;
+            lam = Math.max(1e-3, lam * 0.5);
+            moved = true;
+            break;
+          }
+        }
+        if (!moved) lam *= 4;
+        if (lam > 1e8) break;
+      }
+      const c = cost(v);
+      if (c < bestC) { bestC = c; bestV = v.slice(); }
     }
-    const c = costOf(v);
-    if (!best || c < best.cost) best = { v: v.slice(), cost: c };
+    const e = dist(bestV, tgt);
+    cands.push({ v: bestV, tgt, posGap: Math.hypot(e.dx, e.dy), len: clen(bestV), declared: windK === (wind || 0) });
   }
-  const v = best.v;
-  return { d1: v[0], r1: Math.max(8, v[1]), L: Math.max(0, v[2]), r2: Math.max(8, v[3]), d2: -h - v[0] };
+  // prefer feasible solutions with the declared winding, shortest first;
+  // fall back to least infeasible overall
+  const feas = cands.filter((c) => c.posGap < 2.5);
+  const declaredFeas = feas.filter((c) => c.declared);
+  const pool = declaredFeas.length ? declaredFeas : feas.length ? feas : cands;
+  pool.sort((a, b) => a.len - b.len || a.posGap - b.posGap);
+  const best = pool[0];
+  const [d1, r1, L, r2] = best.v;
+  return { d1, r1, L, r2, d2: best.tgt - d1 };
 }
 
-export function compileCourse(course) {
+export function compileCourse(course, wind = 0) {
   const wps = [];
   const meta = [];
   const s = { x: 0, y: 0, z: 0, h: 0 };
   let totalTurn = 0;
   wps.push([s.x, s.y, s.z]);
-  const emit = (seg) => {
+  const emit = (raw) => {
+    const seg = {
+      len: raw.s ?? raw.len ?? 0,
+      turn: raw.t ?? raw.turn ?? 0,
+      r: raw.r,
+      dz: raw.dz ?? 0,
+      name: raw.name,
+      bank: raw.bank,
+      concrete: raw.concrete,
+    };
     if (seg.name || seg.bank || seg.concrete) meta.push({ wp: wps.length - 1, name: seg.name || null, bank: seg.bank || 0, concrete: !!seg.concrete });
-    const before = [s.x, s.y, s.z, s.h];
-    applySeg(s, seg);
-    if ((seg.turn || 0) !== 0) {
-      const midS = { x: before[0], y: before[1], z: before[2], h: before[3] };
-      applySeg(midS, { turn: seg.turn / 2, r: seg.r || 45, dz: (seg.dz || 0) / 2 });
-      wps.push([midS.x, midS.y, midS.z]);
+    // sample arcs densely enough that the smoothing spline follows the true
+    // arc; one midpoint for a 188 deg hairpin or a 244 deg closer arc cuts
+    // corners badly and kinks the start/finish seam
+    const t = seg.turn || 0;
+    const n = t ? Math.max(1, Math.ceil(Math.abs(t) / 20)) : 1;
+    for (let k = 0; k < n; k++) {
+      applySeg(s, { len: (seg.len || 0) / n, turn: t / n, r: seg.r || 45, dz: (seg.dz || 0) / n });
+      wps.push([s.x, s.y, s.z]);
     }
-    wps.push([s.x, s.y, s.z]);
-    totalTurn += seg.turn || 0;
+    totalTurn += t;
   };
   for (const seg of course) emit(seg);
   const namedTurn = totalTurn;
   const zEnd = s.z;
-  const closer = solveCloser(s.x, s.y, s.h);
+  const preEnd = { x: s.x, y: s.y, z: s.z, h: s.h };
+  const closer = solveCloser(s.x, s.y, s.h, wind, wps);
   const l1 = closer.r1 * Math.abs(closer.d1 * Math.PI / 180);
   const l2 = closer.L;
   const l3 = closer.r2 * Math.abs(closer.d2 * Math.PI / 180);
@@ -236,7 +396,7 @@ export function compileCourse(course) {
   emit({ turn: closer.d1, r: closer.r1, dz: dzk * l1 / lt, name: null });
   emit({ len: closer.L, turn: 0, dz: dzk * l2 / lt, name: null });
   emit({ turn: closer.d2, r: closer.r2, dz: dzk * l3 / lt, name: null });
-  return { wps, meta, totalTurn: namedTurn, closer, endHeading: s.h, gap: Math.hypot(s.x, s.y), endX: s.x, endY: s.y };
+  return { wps, meta, totalTurn: namedTurn, closer, endHeading: s.h, gap: Math.hypot(s.x, s.y), endX: s.x, endY: s.y, preEnd };
 }
 
 const EPS = 1e-6;
@@ -260,7 +420,7 @@ function lerpP(a, b, u) {
 }
 
 export function buildTrack(def) {
-  const cc = compileCourse(def.course);
+  const cc = compileCourse(def.course, def.wind || 0);
   const wps = cc.wps;
   const n = wps.length;
   const dense = [];
@@ -358,38 +518,220 @@ export function buildTrack(def) {
   return { def, samples: S, length, step, segments, halfW: def.roadHalf, totalTurn: cc.totalTurn };
 }
 
+export function createWorld(track) {
+  const halfW = track.halfW;
+  const asphalt = [], kerb = [], grass = [], barrier = [];
+  const step = 4; // meters
+  const S = track.samples;
+  const n = S.length;
+  const right = (i) => [-S[i].ty, S[i].tx];
+  for (let i = 0; i < n; i += step) {
+    const a = S[i];
+    const b = S[(i + step) % n];
+    const ra = right(i), rb = right((i + step) % n);
+    const push = (arr, p, q) => arr.push(p[0], p[1], p[2], q[0], q[1], q[2]);
+    void push;
+    const z0 = a.z + 0.05, z1 = b.z + 0.05;
+    const p = (r, sgn) => [a.x + ra[0] * sgn * r, a.y + ra[1] * sgn * r, 0];
+    const q = (r, sgn) => [b.x + rb[0] * sgn * r, b.y + rb[1] * sgn * r, 0];
+    void p; void q;
+    // asphalt strip
+    asphalt.push(
+      a.x + ra[0] * -halfW, a.y + ra[1] * -halfW, z0,
+      a.x + ra[0] * halfW, a.y + ra[1] * halfW, z0,
+      b.x + rb[0] * halfW, b.y + rb[1] * halfW, z1,
+      a.x + ra[0] * -halfW, a.y + ra[1] * -halfW, z0,
+      b.x + rb[0] * halfW, b.y + rb[1] * halfW, z1,
+      b.x + rb[0] * -halfW, b.y + rb[1] * -halfW, z1,
+    );
+    // kerbs
+    const kw = 1.4;
+    for (const sgn of [-1, 1]) {
+      const edge = 0.2;
+      const k0 = a.z + 0.16, k1 = b.z + 0.16;
+      const t = (r) => [a.x + ra[0] * sgn * r, a.y + ra[1] * sgn * r];
+      const u = (r) => [b.x + rb[0] * sgn * r, b.y + rb[1] * sgn * r];
+      const alt = (Math.floor(i / step) % 2) === 0;
+      const ca = alt ? [2.0, 0.15, 0.1] : [0.95, 0.95, 0.95];
+      kerb.push(...t(halfW - edge), k0, ...u(halfW - edge), k1, ...u(halfW + kw), k1,
+        ...t(halfW - edge), k0, ...u(halfW + kw), k1, ...t(halfW + kw), k0);
+      void ca; // color handled at mesh level via alternating faces
+    }
+    // grass apron
+    const gw = 14;
+    for (const sgn of [-1, 1]) {
+      const t = (r) => [a.x + ra[0] * sgn * r, a.y + ra[1] * sgn * r, a.z - 0.3];
+      const u = (r) => [b.x + rb[0] * sgn * r, b.y + rb[1] * sgn * r, b.z - 0.3];
+      grass.push(...t(halfW + 1.4), ...u(halfW + 1.4), ...u(halfW + gw),
+        ...t(halfW + 1.4), ...u(halfW + gw), ...t(halfW + gw));
+    }
+    // barriers every 8 m where curved or edge of track clusters
+    if (i % 16 === 0) {
+      const bank = Math.abs(a.bank || 0);
+      const curved = Math.abs(a.curv) > 0.004 || bank > 0;
+      if (curved) {
+        for (const sgn of [-1, 1]) {
+          const bx = a.x + ra[0] * sgn * (halfW + 2.6), by = a.y + ra[1] * sgn * (halfW + 2.6);
+          barrier.push(bx, by, a.z);
+        }
+      }
+    }
+  }
+  // tire walls / barriers: place as instanced posts via mesh points
+  const posts = [];
+  for (let i = 0; i < n; i += 10) {
+    const a = S[i];
+    const ra = right(i);
+    const curved = Math.abs(a.curv) > 0.0035 || Math.abs(a.bank || 0) > 0;
+    if (!curved) continue;
+    for (const sgn of [-1, 1]) {
+      posts.push([a.x + ra[0] * sgn * (halfW + 2.4), a.y + ra[1] * sgn * (halfW + 2.4), a.z, a.yaw]);
+    }
+  }
+  // grandstands near start/finish
+  const stands = [];
+  const start = S[0];
+  const sr = right(0);
+  stands.push([start.x + sr[0] * (halfW + 16), start.y + sr[1] * (halfW + 16), start.z, start.yaw]);
+  stands.push([start.x + sr[0] * (halfW + 16) + Math.cos(start.yaw) * 60, start.y + sr[1] * (halfW + 16) + Math.sin(start.yaw) * 60, start.z, start.yaw]);
+  // pit complex on start straight right side
+  const pits = [];
+  for (let k = 30; k < 120; k += 12) {
+    const a = S[k % n];
+    const ra = right(k % n);
+    pits.push([a.x + ra[0] * (halfW + 10), a.y + ra[1] * (halfW + 10), a.z, a.yaw]);
+  }
+  // trees: scatter on grass strip, avoid track vicinity
+  const trees = [];
+  let seed = 987654321;
+  const rnd = () => {
+    seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5;
+    return (seed >>> 0) / 4294967296;
+  };
+  const bb = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+  for (const s of S) {
+    if (s.x < bb.minX) bb.minX = s.x; if (s.x > bb.maxX) bb.maxX = s.x;
+    if (s.y < bb.minY) bb.minY = s.y; if (s.y > bb.maxY) bb.maxY = s.y;
+  }
+  const treeCount = 1400;
+  for (let k = 0; k < treeCount * 4 && trees.length < treeCount; k++) {
+    const x = bb.minX - 60 + rnd() * (bb.maxX - bb.minX + 120);
+    const y = bb.minY - 60 + rnd() * (bb.maxY - bb.minY + 120);
+    // distance to polyline (coarse)
+    let minD = Infinity;
+    for (let i = 0; i < n; i += 8) {
+      const d = (S[i].x - x) ** 2 + (S[i].y - y) ** 2;
+      if (d < minD) minD = d;
+    }
+    if (Math.sqrt(minD) < halfW + 20) continue;
+    trees.push([x, y, 0, 1.5 + rnd() * 3.5]);
+  }
+  // over/underpass structures: detect crossings with z separation
+  const bridges = [];
+  for (let i = 0; i < n; i += 6) {
+    for (let j = i + 60; j < n; j += 6) {
+      const a = S[i], b = S[j];
+      const dx = a.x - b.x, dy = a.y - b.y;
+      const d = Math.hypot(dx, dy);
+      if (d > halfW + 10) continue;
+      const dz = Math.abs(a.z - b.z);
+      if (dz > 4.5) bridges.push([a.x, a.y, Math.max(a.z, b.z), Math.atan2(a.y - b.y, a.x - b.x), d]);
+    }
+  }
+  return { asphalt, kerb, grass, barrier, posts, stands, pits, trees, bridges, curvK: track.def.curvK, track };
+}
+
+export function nearestPoint(track, x, y) {
+  const S = track.samples;
+  let best = 0, bd = Infinity;
+  for (let i = 0; i < S.length; i += 2) {
+    const d = (S[i].x - x) ** 2 + (S[i].y - y) ** 2;
+    if (d < bd) { bd = d; best = i; }
+  }
+  const lo = Math.max(0, best - 4), hi = Math.min(S.length - 1, best + 4);
+  for (let i = lo; i <= hi; i++) {
+    const d = (S[i].x - x) ** 2 + (S[i].y - y) ** 2;
+    if (d < bd) { bd = d; best = i; }
+  }
+  return best;
+}
+
+export function headingAt(track, i) {
+  return track.samples[i].yaw;
+}
+
+export function pointAt(track, i) {
+  return track.samples[((i % track.samples.length) + track.samples.length) % track.samples.length];
+}
+
+// i0 = index at the start line (s = 0); distance is measured forward from
+// there so frac wraps correctly when the car crosses the start/finish line.
+// (The old version returned s = n*step just before the line and s = 0 exactly
+// on it, so the lap counter never reached 1.0 and progress reset early.)
+export function lapAt(track, i) {
+  const n = track.samples.length;
+  let j = i - track.startIndex;
+  if (j < 0) j += n;
+  return { s: j * track.step, frac: j / n };
+}
+
+const cache = new Map();
+export function getTrack(id) {
+  if (!cache.has(id)) {
+    const def = TRACKS.find((t) => t.id === id);
+    if (!def) return null;
+    const t = buildTrack(def);
+    t.startIndex = 0;
+    cache.set(id, t);
+  }
+  return cache.get(id);
+}
+
+// Spatial hash of the centreline samples, with query(x, y) -> nearest sample
+// index (-1 when nothing is within reach). physics.js and world.js both call
+// query(), so it has to exist here or a race dies on the first frame.
+// The optional z argument breaks ties between the two decks of an overpass:
+// at Suzuka's figure-of-eight crossing (and the Nordschleife's tiered
+// sections) both lanes share the same plan position, and picking the wrong one
+// drops the car 6 m onto the lane underneath and jumps its lap progress.
 export function buildIndex(track, cell = 48) {
-  const { samples } = track;
+  const S = track.samples;
   let minx = Infinity, miny = Infinity;
-  for (const s of samples) {
+  for (const s of S) {
     if (s.x < minx) minx = s.x;
     if (s.y < miny) miny = s.y;
   }
-  const gw = 1e7;
+  const GW = 1e7;
   const grid = new Map();
-  samples.forEach((s, i) => {
-    const cx = Math.floor((s.x - minx) / cell), cy = Math.floor((s.y - miny) / cell);
-    const k = cy * gw + cx;
+  S.forEach((s, i) => {
+    const k = Math.floor((s.y - miny) / cell) * GW + Math.floor((s.x - minx) / cell);
     let a = grid.get(k);
     if (!a) { a = []; grid.set(k, a); }
     a.push(i);
   });
-  return {
-    query(x, y) {
-      const cx = Math.floor((x - minx) / cell), cy = Math.floor((y - miny) / cell);
-      let best = -1, bd = Infinity;
-      for (let r = 1; r <= 12 && best < 0; r++) {
-        for (let oy = -r; oy <= r; oy++) for (let ox = -r; ox <= r; ox++) {
-          const a = grid.get((cy + oy) * gw + (cx + ox));
-          if (!a) continue;
-          for (const i of a) {
-            const s = samples[i];
-            const d = (s.x - x) ** 2 + (s.y - y) ** 2;
-            if (d < bd) { bd = d; best = i; }
-          }
-        }
+  const query = (x, y, z = null) => {
+    const cx = Math.floor((x - minx) / cell), cy = Math.floor((y - miny) / cell);
+    let best = -1, bs = Infinity;
+    const scan = (ox, oy) => {
+      const a = grid.get((cy + oy) * GW + (cx + ox));
+      if (!a) return;
+      for (let k = 0; k < a.length; k++) {
+        const i = a[k], s = S[i];
+        let sc = (s.x - x) ** 2 + (s.y - y) ** 2;
+        if (z != null) sc += (s.z - z) ** 2 * 2;
+        if (sc < bs) { bs = sc; best = i; }
       }
-      return best;
-    },
+    };
+    for (let r = 0; r <= 3; r++) {
+      for (let oy = -r; oy <= r; oy++) for (let ox = -r; ox <= r; ox++) {
+        if (r && Math.abs(ox) !== r && Math.abs(oy) !== r) continue;
+        scan(ox, oy);
+      }
+    }
+    for (let r = 4; r <= 12 && best < 0; r++) {
+      for (let oy = -r; oy <= r; oy++) for (let ox = -r; ox <= r; ox++) scan(ox, oy);
+    }
+    return best;
   };
+  return { query, cell };
 }

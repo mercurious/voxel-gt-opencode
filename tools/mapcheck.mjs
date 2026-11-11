@@ -2,7 +2,7 @@ import { TRACKS, buildTrack, compileCourse } from '../src/tracks.js';
 
 const W = 88, H = 38;
 for (const def of TRACKS) {
-  const cc = compileCourse(def.course);
+  const cc = compileCourse(def.course, def.wind || 0);
   const t = buildTrack(def);
   console.log(`=== ${def.name} — sampled ${t.length.toFixed(0)} m (real ${def.realLength}${def.condensed ? ' CONDENSED' : ''}), totalTurn ${cc.totalTurn}, closer d1 ${cc.closer.d1.toFixed(0)}/r${cc.closer.r1.toFixed(0)} L${cc.closer.L.toFixed(0)} d2 ${cc.closer.d2.toFixed(0)}/r${cc.closer.r2.toFixed(0)} ===`);
   let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
