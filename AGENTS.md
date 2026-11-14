@@ -1,10 +1,12 @@
 # Voxel Grand Tourismo
 
-Pure-ESM browser voxel racer. No package.json, no build step, no dependencies, no test runner, no CI.
-`index.html` + `styles.css` + `src/*.js` are served as-is.
+Pure-ESM browser voxel racer. No package.json, no build step, no dependencies, no test runner.
+`index.html` + `styles.css` + `src/*.js` are served as-is. The only CI is `.github/workflows/pages.yml`,
+which copies exactly those files to GitHub Pages on every push to `main`.
 
 ## Run
 
+- Live site: https://mercurious.github.io/voxel-gt-opencode/ (deployed by `.github/workflows/pages.yml` on each push to `main`).
 - Must be served over HTTP — ES modules are blocked on `file://`, and `index.html` prints a boot error when opened that way:
   `python3 -m http.server` → http://localhost:8000
 - Controls: WASD/arrows, Space handbrake, C hood cam, R respawn, Esc pause, Enter advances menus.
@@ -28,7 +30,7 @@ google-chrome --headless=new --no-sandbox --enable-unsafe-swiftshader --use-gl=a
   http://localhost:8731/ 2>&1 | grep -i CONSOLE
 ```
 
-`--enable-unsafe-swiftshader` is required — without it headless Chrome refuses software WebGL and the page only shows a renderer boot error. This covers the load path only; reaching `buildWorld` requires menu clicks (drive the page with the playwright copy in `~/.npm/_npx`, or click by hand).
+`--enable-unsafe-swiftshader` is required — without it headless Chrome refuses software WebGL and the page only shows a renderer boot error. This covers the load path only; reaching `buildWorld` requires menu clicks (drive the page with the playwright copy in `~/.npm/_npx`, or click by hand). The same check works against the deployed site — point it at https://mercurious.github.io/voxel-gt-opencode/, where a console 404 for a `src/*.js` means the Pages artifact is missing a file. The `booterr` banner only catches thrown script errors, not failed resource loads, so a missing module gives a blank page rather than that message.
 
 ## Architecture notes that are not obvious from filenames
 
@@ -51,4 +53,9 @@ google-chrome --headless=new --no-sandbox --enable-unsafe-swiftshader --use-gl=a
 
 - The two session transcripts in the repo root total ~1.7 MB. Grep them, never read them whole; they are history, not spec.
 - `/home/dave/voxel/*` are sibling, independent experiments of this same game (different models/variants). Do not edit, sync, or copy between them unless asked.
-- Private work: commit as the `mercurious` identity, nothing here goes upstream (see `/home/dave/AGENTS.md`).
+- Commit as the `mercurious` identity. The repo is public (`mercurious/voxel-gt-opencode`) and the
+  site is live at https://mercurious.github.io/voxel-gt-opencode/, but nothing here goes upstream to
+  any project (see `/home/dave/AGENTS.md`).
+- Pages publishes the repo default branch's `main`, so pushing `main` deploys whatever is on it.
+  `fix/*` branches are safe to push; only `main` reaches the site.
+- MIT-licensed (`LICENSE`). New files inherit that; keep source files free of per-file license headers.

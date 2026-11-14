@@ -15,6 +15,11 @@ for the engine and skid noise. ~2,100 lines of JavaScript, zero dependencies.
 
 ## Play
 
+**Play it now:** <https://mercurious.github.io/voxel-gt-opencode/> — deployed from `main` by
+[`.github/workflows/pages.yml`](.github/workflows/pages.yml).
+
+Or run it from a clone:
+
 ```bash
 python3 -m http.server      # or any static server
 ```
@@ -121,11 +126,23 @@ google-chrome --headless=new --no-sandbox --enable-unsafe-swiftshader --use-gl=a
   http://localhost:8000/ 2>&1 | grep -i CONSOLE
 ```
 
+Point the same command at <https://mercurious.github.io/voxel-gt-opencode/> to check a deploy —
+a module missing from the Pages artifact appears as a 404 in the console. It does *not* raise the
+`booterr` banner: that hook only sees thrown script errors, not failed resource loads, so the page
+just stays blank.
+
 ## History and further notes
 
 - `session-*.md` in the repo root are the OpenCode transcripts from the original build and the
   layout-fix pass — the design decisions and the failed attempts are all in there (they are large; grep them).
-- [AGENTS.md](AGENTS.md) records the non-obvious constraints for automated work: the current
-  regressions, the fields that are stale, and which exports are dead code.
-- No license and no upstream plan: this is a private personal experiment. The name is a joke about
-  the obvious inspiration.
+- [AGENTS.md](AGENTS.md) records the non-obvious constraints for automated work: the guardrails no
+  tool checks, the fields that are stale, and which exports are dead code.
+
+## License
+
+MIT — see [LICENSE](LICENSE). That covers the code, the track layouts and these docs.
+
+Circuit and car names (Tsukuba, Suzuka, Nordschleife, RX-7, Supra, Skyline, NSX, Lancer Evolution …)
+are trademarks of their respective owners; this project is unaffiliated and unendorsed. The circuits
+are original reconstructions typed in from published corner radii and straight lengths, not scanned
+or licensed track data, and the car models are generic box stacks rather than scanned geometry.

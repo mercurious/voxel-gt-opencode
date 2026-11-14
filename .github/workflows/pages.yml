@@ -1,0 +1,53 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  site:
+    name: Stage site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Only the files the game actually loads. The repo also carries dev tools
+      # and ~1.7 MB of session transcripts, which must not be published.
+      - name: Copy the static site
+        run: |
+          mkdir -p _site
+          cp index.html styles.css _site/
+          cp -R src _site/src
+
+      # A missing module is a blank page with only a boot error, so fail loudly here.
+      - name: Check the staged site is complete
+        run: |
+          test -f _site/index.html
+          test -f _site/styles.css
+          test "$(find _site/src -name '*.js' | wc -l)" -eq 8
+          test "$(find _site -type f | wc -l)" -eq 10
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy
+    needs: site
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
