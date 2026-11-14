@@ -78,7 +78,7 @@ function buildTrackList() {
     const t = getTrack(i);
     const d = document.createElement('div');
     d.className = 'card' + (i === selTrack ? ' sel' : '');
-    d.innerHTML = `<canvas></canvas><div class="name">${def.name}</div><div class="sub">${def.place}</div>
+    d.innerHTML = `<canvas></canvas><div class="name">${def.name}</div><div class="sub">${def.loc}</div>
       <div class="trackmeta">${t.length.toFixed(0)} m${def.condensed ? ' · condensed' : ' · full'}</div>`;
     d.onclick = () => { selTrack = i; buildTrackList(); sound.init(); sound.resume(); sound.beep(440, 0.06, 0.12); };
     list.appendChild(d);

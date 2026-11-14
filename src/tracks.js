@@ -12,6 +12,10 @@
 // sums close to wind*360 deg.
 // World-space z is base + dz (base differs per track); dz values in courses
 // are relative heights that the closer brings back to the start elevation.
+// `theme` drives the scenery that world.js builds around the track: grass/sky
+// as 0..1 rgb, trees 'dense'|'sparse', standAt as a lap fraction (or list of
+// them), pitAt likewise, and standSides/pitSides which side of the road
+// (-1 = right of driving direction, +1 = left) they sit on.
 
 export const TRACKS = [
   {
@@ -25,6 +29,10 @@ export const TRACKS = [
     curvK: 0.00035,
     zBase: 40,
     startHeading: 90,
+    theme: {
+      grass: [0.36, 0.52, 0.26], sky: [0.56, 0.72, 0.92], trees: 'sparse',
+      standAt: 0.03, standSides: [-1], pitAt: 0.02, pitSides: [1],
+    },
     course: [
       { s: 125, name: "Start/Finish Straight" },
       { r: 55, t: -72.3, bank: 2, name: "Turn 1" },
@@ -56,6 +64,10 @@ export const TRACKS = [
     curvK: 0.00045,
     zBase: 38,
     startHeading: 105,
+    theme: {
+      grass: [0.40, 0.55, 0.28], sky: [0.53, 0.71, 0.93], trees: 'sparse',
+      standAt: [0, 0.78], standSides: [-1], pitAt: 0.02, pitSides: [1],
+    },
     course: [
       { s: 127, name: "Start/Finish Straight" },
       { r: 69, t: -100, bank: 5, name: "Turn 1 (130R)" },
@@ -105,6 +117,10 @@ export const TRACKS = [
     curvK: 0.0005,
     zBase: 320,
     startHeading: 120,
+    theme: {
+      grass: [0.30, 0.46, 0.24], sky: [0.62, 0.74, 0.88], trees: 'dense',
+      standAt: [0.02, 0.68], standSides: [-1], pitAt: 0.06, pitSides: [1],
+    },
     course: [
       { s: 150, name: "Start/Finish (Treppchen)" },
       { r: 52, t: -72, dz: 2, name: "Hatzenbach" },

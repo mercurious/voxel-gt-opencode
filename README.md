@@ -8,12 +8,10 @@ straight lengths; the loop that closes each lap is solved by code, not drawn by 
 Everything is plain ES modules (`src/*.js`), DOM menus plus a 2D-canvas HUD and minimap, and WebAudio
 for the engine and skid noise. ~2,100 lines of JavaScript, zero dependencies.
 
-> **Status:** the game loads and the three courses close cleanly (`layoutcheck.mjs`: sub-metre
-> closure, correct turning numbers, no barrier clashes), but **starting a race currently throws**
-> (`Cannot read properties of undefined (reading 'standAt')` in `src/world.js:43`). The per-track
-> `theme` block was dropped from `src/tracks.js` in commit `e42f10a`. See
-> [AGENTS.md](AGENTS.md) for the exact shape to restore. Layout work is fully verifiable headlessly
-> (see [Tools](#tools)) while this is open.
+> **Status:** playable end to end — five cars, three circuits, 3-lap stints with timing and
+> records. All three courses close cleanly (`layoutcheck.mjs`: sub-metre closure, correct turning
+> numbers, no barrier clashes). The layouts are stylized rather than laser-surveyed, and the
+> Nordschleife in particular is a condensed reading of the 20.8 km circuit.
 
 ## Play
 
@@ -66,7 +64,7 @@ each has its own arcade physics preset (`top`, `accel`, `grip`, `wb`).
 
 ```
 src/tracks.js    course arcs → compileCourse (+ solved closing loop) → spline → 1 m samples + spatial index
-src/world.js     walks the samples and emits every static box (road, curbs, barriers, terrain, grandstands, trees, overpass)
+src/world.js     walks the samples and emits every static box (road, curbs, barriers, terrain, grandstands, trees, overpass); needs the def's `theme`
 src/renderer.js  one WebGL2 program: instanced boxes, chunked static geometry, per-frame dynamic upload for the car
 src/physics.js   bicycle-model arcade car: lateral slip, grip budget, grass, walls, respawn
 src/main.js      menus, race state, lap timing, camera, HUD/minimap drawing, main loop

@@ -40,10 +40,11 @@ google-chrome --headless=new --no-sandbox --enable-unsafe-swiftshader --use-gl=a
 - `src/tracks.js` also exports `createWorld`, `nearestPoint`, `headingAt`, `pointAt`, `lapAt`, `getTrack`. Nothing imports them; `main.js` has its own `getTrack`/`trackCache`. They are not the live path.
 - In `src/cars.js`, `stats` are only the select-screen bars. Driving comes from `phys`, and `physics.js` reads only `top`, `accel`, `grip`, `wb` — `phys.handGrip`, `phys.under` and the `stats` values currently change nothing.
 
-## Known-broken at HEAD (4c96abe), verified
+## Guardrails that no tool enforces
 
-- `def.theme` is missing from all three `TRACKS` entries — it was dropped in e42f10a when the course arrays were rewritten (`git show 9fa228a:src/tracks.js` has the old blocks). Consequence: starting a race throws `Cannot read properties of undefined (reading 'standAt')` at `src/world.js:43`, and `main.js` also reads `def.theme.sky` each frame. Shape needed: `theme: { grass: [r,g,b] floats 0..1, sky: [r,g,b] or hex, trees: 'dense'|'sparse', standAt: 0..1 fraction of lap, standSides: [±1], pitAt: 0..1, pitSides: [±1] }`.
-- Field drift: `main.js` renders `def.place` but the defs define `loc`; `tools/mapcheck.mjs` prints `def.realLength` but the defs define `lengthM`. Both render `undefined`.
+- Every `TRACKS` entry needs a `theme` block: `world.js` reads `standAt`/`standSides`/`pitAt`/`pitSides`/`grass`/`trees` and `main.js` reads `sky`. No tool checks it, and rewriting the course arrays in `e42f10a` dropped all three — races then threw `Cannot read properties of undefined (reading 'standAt')` at `src/world.js:43`. Shape: `grass`/`sky` as 0..1 rgb (`sky` also accepts a hex string), `trees: 'dense'|'sparse'`, `standAt`/`pitAt` as a lap fraction `0..1` (`standAt` also accepts a list), `standSides`/`pitSides` as `[-1]`/`[1]` (−1 = right of the driving direction).
+- `tools/*.mjs` cover layout math only; they never touch scenery, physics or rendering, so a broken `theme` or HUD change still exits 0. Use the headless Chrome check above for those paths. The only expected console noise is a `favicon.ico` 404.
+- Static geometry stays around 18k–33k boxes per track (measured), far below the 4,000,000 box cap, so a large jump in that number means scenery is being duplicated, not that the cap is close.
 - No test framework exists; the `tools/*.mjs` scripts are the closest thing to one and are expected to keep passing.
 
 ## Repo conventions
